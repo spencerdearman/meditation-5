@@ -1,0 +1,173 @@
+<body></body>
+<script src="https://unpkg.com/tone"></script>
+<script src="https://cdn.jsdelivr.net/gh/netizenorg/netnet-standard-library/build/nn.min.js?v=1"></script>
+<script>
+/* global nn, Tone */
+  
+/* didn't use chat for this one -- took forever but pulled from my piano background to match the notes, but did use the example from algo music last quarter heavily and then just modified from there */
+/* oh also this is the sheet music I used : https://ekladata.com/b3yusd7PGHjEDwmg9vQX_Wu4jRE/Adele-Someone-Like-You.pdf */
+
+let step = 0
+let bar = 0
+let totalSteps = 16
+let totalBars = 4
+
+/* bpm */
+Tone.Transport.bpm.value = 68
+
+/* right hand arpeggios */
+let rightHandScale = ['A4', 'C#5', 'D5', 'E5', 'F#5', 'G#4', 'F#4']
+let rightHandArp = [
+  [0, 1, 3, 1, 0, 1, 3, 1, 0, 1, 3, 1, 0, 1, 3, 1],
+  [5, 1, 3, 1, 5, 1, 3, 1, 5, 1, 3, 1, 5, 1, 3, 1],
+  [6, 1, 4, 1, 6, 1, 4, 1, 6, 1, 4, 1, 6, 1, 4, 1],
+  [0, 2, 4, 2, 0, 2, 4, 2, 0, 2, 4, 2, 0, 2, 4, 2],
+]
+
+/* left hand arpeggios */
+let leftHandScale = ['A2', 'G#2', 'E3', 'F#2', 'C#3','D2', 'D3']
+let leftHandChrd = [
+  [0, 2], [1, 2], [3, 4], [5, 6]
+]
+
+const reverb = new Tone.Reverb({ wet: 0.75, decay: 5 }).toDestination()
+
+const piano = new Tone.Sampler({
+  baseUrl: "https://tonejs.github.io/audio/salamander/",
+  urls: {
+    'A0': 'A0.mp3',
+    'C1': 'C1.mp3',
+    'D#1': 'Ds1.mp3',
+    'F#1': 'Fs1.mp3',
+    'A1': 'A1.mp3',
+    'C2': 'C2.mp3',
+    'D#2': 'Ds2.mp3',
+    'F#2': 'Fs2.mp3',
+    'A2': 'A2.mp3',
+    'C3': 'C3.mp3',
+    'D#3': 'Ds3.mp3',
+    'F#3': 'Fs3.mp3',
+    'A3': 'A3.mp3',
+    'C4': 'C4.mp3',
+    'D#4': 'Ds4.mp3',
+    'F#4': 'Fs4.mp3',
+    'A4': 'A4.mp3',
+    'C5': 'C5.mp3',
+    'D#5': 'Ds5.mp3',
+    'F#5': 'Fs5.mp3',
+    'A5': 'A5.mp3'
+  },
+  release: 1
+})
+piano.connect(reverb)
+
+/* randomizing the octave of the scales */
+function randomize () {
+  Tone.Transport.bpm.value = nn.randomInt(50, 110)
+  let octave = nn.randomInt(0, 5)
+  let bass = octave
+  let treble = octave + 1
+  
+  rhs = ['A', 'C#', 'D', 'E', 'F#', 'G#', 'F#']
+  lhs = ['A', 'G#', 'E', 'F#', 'C#','D', 'D']
+
+  const rhsPattern = [0, 1, 1, 1, 1, 0, 0]
+  const lhsPattern = [0, 0, 1, 0, 1, 0, 1]
+
+  rightHandScale = []
+  for (let i = 0; i < rhs.length; i++) {
+    let num = treble + rhsPattern[i]
+    rightHandScale.push(`${rhs[i]}${num}`)
+  }
+  console.log(rightHandScale)
+
+  leftHandScale = []
+  for (let i = 0; i < lhs.length; i++) {
+    let num = bass + lhsPattern[i]
+    leftHandScale.push(`${lhs[i]}${num}`)
+  }
+  console.log(leftHandScale)
+}
+
+/* play function */
+function play (time) {
+  const s = step % totalSteps
+  const b = bar % totalBars
+
+  if (s === 0) {
+    const bass = leftHandChrd[b].map(i => leftHandScale[i])
+    piano.triggerAttackRelease(bass, '1n', time)
+  }
+
+  const arp = rightHandArp[b]
+  const note = rightHandScale[arp[s]]
+  piano.triggerAttackRelease(note, '16n', time)
+  
+  /* visual feedback */
+  const hue = nn.randomInt(0, 255) // shade of blue
+  const saturation = nn.randomInt(60, 80)
+  nn.get('body').css({
+    backgroundColor: `hsl(${hue}deg, ${saturation}%, 95%)`
+  })
+
+  step++
+  if (s === totalSteps - 1) bar++
+}
+
+new Tone.Loop(play, '16n').start()
+
+/* all of this is from the algo music example */
+function toggle () {
+  if (Tone.Transport.state === 'started') {
+    Tone.Transport.stop()
+    toggleButton.content('play Adele')
+  } else {
+    step = 0
+    bar = 0
+    Tone.Transport.start()
+    toggleButton.content('stop Adele :\(')
+  }
+}
+
+const buttonCSS = {
+  border: '1px solid black',
+  padding: '20px 30px',
+  background: 'transparent',
+  margin: '10px',
+  cursor: 'pointer'
+}
+
+function buttonHover (e) {
+  const button = e.target
+  const over = e.type === 'mouseover'
+  button.style.background = over ? 'black' : 'transparent'
+  button.style.color = over ? 'white' : 'black'
+}
+
+const container = nn.create('section')
+  .addTo('body')
+  .css({
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'fixed',
+    width: '100vw',
+    height: '100vh'
+  })
+
+const toggleButton = nn.create('button')
+  .content('play Adele')
+  .addTo(container)
+  .css(buttonCSS)
+  .on('mouseover', buttonHover)
+  .on('mouseout', buttonHover)
+  .on('click', toggle)
+
+nn.create('button')
+  .content('randomize 🎲')
+  .addTo(container)
+  .css(buttonCSS)
+  .on('mouseover', buttonHover)
+  .on('mouseout', buttonHover)
+  .on('click', randomize)
+</script>
